@@ -6,17 +6,18 @@ st.set_page_config(page_title="DSP 数据看板", layout="wide")
 
 st.markdown("""
     <style>
-    /* 强制全局背景 */
+    /* 强制全局背景与主题变量 */
     :root {
-        --secondary-background-color: #EBF5FF !important; /* 影响表格偶数行及部分组件背景 */
+        --secondary-background-color: #EBF5FF !important; /* 表格及部分组件背景 */
         --background-color: #FFFFFF !important;
+        --text-color: #2D3748 !important;
     }
     .stApp { background-color: #F8FAFC !important; }
     
-    /* 1. 大标题及数值：深灰色 */
+    /* 标题及数值颜色：深灰色 */
     .main-title { color: #4A5568 !important; font-weight: 800; text-align: center; margin-bottom: 25px; }
     
-    /* 强制 Metric 数值显示为深灰色 */
+    /* 强制顶部五个指标卡片的数值和标签为深灰色 */
     [data-testid="stMetricValue"] {
         color: #4A5568 !important;
     }
@@ -24,24 +25,23 @@ st.markdown("""
         color: #4A5568 !important;
     }
 
-    /* 2. 核心：强制将表格底色改为浅蓝色 */
+    /* 强制将表格（Dataframe）底色改为浅蓝色 */
     [data-testid="stDataFrame"], [data-testid="stDataFrameGrid"] {
         background-color: #EBF5FF !important;
         border-radius: 8px;
     }
-    /* 针对内部渲染单元格的颜色覆盖 */
     div[data-testid="stDataFrame"] div[role="grid"] {
         background-color: #EBF5FF !important;
     }
 
-    /* 筛选框样式 */
+    /* 筛选框样式：浅蓝色背景，深灰色文字 */
     div[data-baseweb="select"] > div, div[data-baseweb="base-input"] > div, input {
         background-color: #F0F7FF !important;
-        color: #2D3748 !important;
+        color: #4A5568 !important;
         border: 1px solid #BEE3F8 !important;
     }
 
-    /* 上传框样式 (保持深蓝) */
+    /* 首页上传框样式 */
     [data-testid="stFileUploader"] section { background-color: #0A192F !important; color: white !important; }
     </style>
 """, unsafe_allow_html=True)
@@ -109,7 +109,7 @@ else:
             agg_ecpm = (total_cost / (total_imps / 1000)) if total_imps > 0 else 0
             agg_ntb_rate = (total_ntb_pur / total_pur) if total_pur > 0 else 0
 
-            # 顶部核心指标显示 (数值已通过CSS设为深灰色)
+            # 顶部核心指标显示
             st.markdown("<h3 style='color:#4A5568;'>📌 核心指标汇总 (Aggregated)</h3>", unsafe_allow_html=True)
             k1, k2, k3, k4, k5 = st.columns(5)
             k1.metric("Total Cost", f"${total_cost:,.2f}")
@@ -120,9 +120,11 @@ else:
             
             st.write("---")
 
-            # --- 5. 数据表格展示 (底色已设为浅蓝色) ---
+            # --- 5. 数据汇总与排序：先ADV Name升序，再日期升序 ---
             summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
             summary = calculate_row_metrics(summary)
+            # 排序逻辑实现
+            summary = summary.sort_values(by=['ADV Name', '日期'], ascending=[True, True])
 
             st.download_button(
                 "📥 导出汇总明细 (CSV)", 
@@ -140,7 +142,7 @@ else:
             ]
             
             st.dataframe(
-                summary[final_order].sort_values(['日期', 'ADV Name'], ascending=[False, True]),
+                summary[final_order],
                 use_container_width=True,
                 hide_index=True,
                 column_config={
