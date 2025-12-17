@@ -6,66 +6,71 @@ from plotly.subplots import make_subplots
 # --- 1. 页面配置与深度视觉定制 ---
 st.set_page_config(page_title="DSP 投放洞察看板", layout="wide")
 
-# 这里的 CSS 增加了对 .stSelectbox, .stDateInput 内部容器的深度控制
 st.markdown("""
     <style>
-    /* 1. 全局背景：浅灰蓝色 */
+    /* 1. 全局背景：浅灰蓝 */
     .stApp { background-color: #F0F4F8 !important; }
-    h1, h2, h3, .stMetric label, label, p { color: #2D3748 !important; font-weight: 700 !important; }
+    h1, h2, h3, label, p { color: #2D3748 !important; font-weight: 700 !important; }
 
-    /* 2. 容器样式：锁定浅蓝底色 */
+    /* 2. 首页上传界面背景恢复 */
+    .upload-container {
+        background: linear-gradient(135deg, #E6F0FF 0%, #F0F4F8 100%);
+        padding: 60px;
+        border-radius: 20px;
+        text-align: center;
+        border: 2px solid #BEE3F8;
+        margin: 20px 0;
+    }
+
+    /* 3. 上传框底色：强制深蓝色 */
+    [data-testid="stFileUploader"] section {
+        background-color: #0A192F !important;
+        color: white !important;
+        border: 2px dashed #3182CE !important;
+    }
+    [data-testid="stFileUploader"] section div, [data-testid="stFileUploader"] section span {
+        color: #E2E8F0 !important;
+    }
+
+    /* 4. 筛选框容器：浅蓝色 */
     .top-bar, .chart-filter-box {
-        background-color: #E6F0FF !important;
+        background-color: #E1EFFE !important;
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 25px;
         border: 1px solid #BEE3F8;
     }
 
-    /* 3. 彻底去除黑色背景：强制修改所有输入组件内部 */
-    /* 针对下拉框、日期选择器、按钮 */
+    /* 5. 强制去除所有黑色底色 (针对下拉、日期、按钮) */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="base-input"] > div,
     div[data-testid="stDateInput"] div,
-    input {
-        background-color: #EBF5FF !important;
+    input, .stButton > button {
+        background-color: #EDF2F7 !important;
         color: #2D3748 !important;
-        border-color: #BEE3F8 !important;
-    }
-
-    /* 针对重新上传按钮 */
-    .stButton > button {
-        background-color: #EBF5FF !important;
-        color: #2D3748 !important;
-        border: 1px solid #90CDF4 !important;
-        width: 100%;
-    }
-    .stButton > button:hover {
-        background-color: #BEE3F8 !important;
-        border-color: #3182CE !important;
-    }
-
-    /* 4. 修改选中标签：深蓝色底，白色字 */
-    span[data-baseweb="tag"] {
-        background-color: #2C5282 !important;
-        color: white !important;
-    }
-    span[data-baseweb="tag"] span { color: white !important; }
-
-    /* 5. 表格容器：去除黑色 */
-    [data-testid="stDataFrame"] {
-        background-color: #F7FAFC !important;
+        border: 1px solid #CBD5E0 !important;
     }
     
-    /* 6. 指标卡片数值 */
-    div[data-testid="stMetricValue"] { color: #2B6CB0 !important; font-weight: 800 !important; }
+    /* 6. 表格样式：强制浅蓝色底 + 浅灰色网格 */
+    [data-testid="stDataFrame"] {
+        background-color: #EBF5FF !important;
+    }
+    .stDataFrame div[data-testid="stTable"] {
+        background-color: #EBF5FF !important;
+    }
 
+    /* 7. 指标卡片数值 */
+    div[data-testid="stMetricValue"] { color: #2B6CB0 !important; font-weight: 800 !important; }
+    
+    /* 隐藏侧边栏 */
     [data-testid="stSidebar"] { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- 2. 核心计算函数 ---
-def calc_metrics(temp_df):
+def calc_metrics(df_input):
+    # 确保没有修改原始 dataframe
+    temp_df = df_input.copy()
     temp_df['Total ROAS'] = (temp_df['Total Sales'] / temp_df['Total Cost']).replace([float('inf'), -float('inf')], 0).fillna(0)
     temp_df['CPM'] = (temp_df['Total Cost'] / (temp_df['Impressions'] / 1000)).replace([float('inf'), -float('inf')], 0).fillna(0)
     temp_df['CPC'] = (temp_df['Total Cost'] / temp_df['Clicks']).replace([float('inf'), -float('inf')], 0).fillna(0)
@@ -84,6 +89,8 @@ def load_and_clean_data(file):
     }
     df.rename(columns=mapping, inplace=True)
     df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
+    
+    # 填充缺失列并确保数值类型
     num_cols = ['Total Cost', 'Total Sales', 'Impressions', 'Clicks', 'Total Detail Page View', 
                 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'Total New To Brand Purchases']
     for col in num_cols:
@@ -96,7 +103,12 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
 if not st.session_state.data_loaded:
-    st.markdown('<div class="top-bar"><h2>请上传 DSP 报表文件</h2></div>', unsafe_allow_html=True)
+    st.markdown("""
+        <div class="upload-container">
+            <h1>🚀 DSP 数据洞察中心</h1>
+            <p>请上传您的广告报表（Excel 或 CSV）</p>
+        </div>
+    """, unsafe_allow_html=True)
     uploaded_file = st.file_uploader("", type=['xlsx', 'csv'])
     if uploaded_file:
         st.session_state.df = load_and_clean_data(uploaded_file)
@@ -128,15 +140,11 @@ else:
     else:
         sdf = df[df['ADV Name'].isin(selected_advs)]
 
-    # 聚合数据
-    summary = sdf.groupby(['ADV Name', '日期']).agg({
-        'Total Cost': 'sum', 'Total Sales': 'sum', 'Impressions': 'sum', 'Clicks': 'sum',
-        'Total Detail Page View': 'sum', 'Total Add To Cart': 'sum', 'Total Purchases': 'sum',
-        'Total Units Sold': 'sum', 'Total New To Brand Purchases': 'sum'
-    }).reset_index()
+    # 聚合汇总
+    summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
     summary = calc_metrics(summary)
 
-    # --- 4. KPI 指标 ---
+    # KPI 卡片
     t1, t2, t3, t4, t5 = st.columns(5)
     tc, ts, ti, tp, tnb = summary['Total Cost'].sum(), summary['Total Sales'].sum(), summary['Impressions'].sum(), summary['Total Purchases'].sum(), summary['Total New To Brand Purchases'].sum()
     t1.metric("Total Cost", f"{tc:,.2f}")
@@ -145,13 +153,12 @@ else:
     t4.metric("Total ROAS", f"{(ts/tc if tc>0 else 0):.2f}")
     t5.metric("Total NTBR", f"{(tnb/tp if tp>0 else 0):.2%}")
 
-    # --- 5. 数据统计明细表 (修复报错 + 格式优化) ---
+    # --- 2. 数据统计明细表 ---
     st.write("---")
     st.subheader("📋 数据统计明细表")
     order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
     summary_display = summary[[c for c in order if c in summary.columns]].sort_values(['ADV Name', '日期'])
-    
-    # 修复：不要手动转换字符串日期，由 hide_index 和 column_config 统一处理
+
     st.dataframe(
         summary_display,
         use_container_width=True,
@@ -168,33 +175,33 @@ else:
             "Total Purchases": st.column_config.NumberColumn("Purchases", format="%d"),
             "Total Units Sold": st.column_config.NumberColumn("Units", format="%d"),
             "Total New To Brand Purchases": st.column_config.NumberColumn("NTB Purchases", format="%d"),
+            "Clicks": st.column_config.NumberColumn("Clicks", format="%d"),
+            "Impressions": st.column_config.NumberColumn("Impressions", format="%d"),
         }
     )
 
-    # --- 6. 趋势分析图 (横纵轴深灰色) ---
+    # --- 3. 趋势对比分析 ---
     st.write("---")
     st.subheader("📈 趋势对比分析")
     st.markdown('<div class="chart-filter-box">', unsafe_allow_html=True)
     c_col1, c_col2 = st.columns(2)
-    m_bar = c_col1.selectbox("柱状图指标 (左轴)", ['Total Cost', 'Impressions', 'Total Sales'])
+    m_bar = c_col1.selectbox("柱状图指标 (左轴)", ['Total Cost', 'Impressions', 'Total Sales', 'Total Purchases'])
     m_line = c_col2.selectbox("折线图指标 (右轴)", ['Total ROAS', 'Total NTB Rate', 'CTR', 'CPM'])
     st.markdown('</div>', unsafe_allow_html=True)
     
-    chart_df = summary.groupby('日期').agg({
-        'Total Cost': 'sum', 'Total Sales': 'sum', 'Impressions': 'sum', 
-        'Clicks': 'sum', 'Total Purchases': 'sum', 'Total New To Brand Purchases': 'sum'
-    }).reset_index()
-    chart_df = calc_metrics(chart_df)
+    # 图表聚合计算
+    chart_data = summary.groupby('日期').sum(numeric_only=True).reset_index()
+    chart_data = calc_metrics(chart_data)
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Bar(x=chart_df['日期'], y=chart_df[m_bar], name=m_bar, marker_color='#4299E1'), secondary_y=False)
-    fig.add_trace(go.Scatter(x=chart_df['日期'], y=chart_df[m_line], name=m_line, line=dict(color='#ED8936', width=4)), secondary_y=True)
+    fig.add_trace(go.Bar(x=chart_data['日期'], y=chart_data[m_bar], name=m_bar, marker_color='#4299E1'), secondary_y=False)
+    fig.add_trace(go.Scatter(x=chart_data['日期'], y=chart_data[m_line], name=m_line, line=dict(color='#ED8936', width=4)), secondary_y=True)
     
-    # 横纵坐标全部统一为深灰色
-    axis_config = dict(
+    # 统一横纵轴颜色为深灰色
+    axis_theme = dict(
         showgrid=True, 
         gridcolor='#E2E8F0', 
-        tickfont=dict(color="#4A5568"), # 深灰色文字
+        tickfont=dict(color="#4A5568"),
         titlefont=dict(color="#4A5568")
     )
 
@@ -202,8 +209,9 @@ else:
         paper_bgcolor='rgba(0,0,0,0)', 
         plot_bgcolor='#F7FAFC', 
         hovermode="x unified",
-        xaxis=axis_config,
-        yaxis=axis_config,
-        yaxis2=dict(overlaying='y', side='right', **axis_config)
+        xaxis=axis_theme,
+        yaxis=axis_theme,
+        yaxis2=dict(overlaying='y', side='right', **axis_theme),
+        margin=dict(l=20, r=20, t=20, b=20)
     )
     st.plotly_chart(fig, use_container_width=True)
