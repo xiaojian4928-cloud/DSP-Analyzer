@@ -3,78 +3,76 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-# --- 1. 页面配置与视觉样式 (深度去黑版) ---
+# --- 1. 页面配置与深度视觉定制 ---
 st.set_page_config(page_title="DSP 投放洞察看板", layout="wide")
 
 st.markdown("""
     <style>
-    /* 1. 全局背景与字体颜色 */
+    /* 全局背景 */
     .stApp { background-color: #FFFFFF !important; }
     h1, h2, h3, .stMetric label, label, p { color: #0A192F !important; font-weight: 700 !important; }
 
-    /* 2. 顶部 & 趋势图筛选框容器：浅蓝色底 */
+    /* 顶部容器 */
     .top-bar, .chart-filter-box {
         background-color: #EBF5FF !important;
         padding: 20px;
-        border-radius: 15px;
+        border-radius: 12px;
         margin-bottom: 25px;
-        border: 1px solid #C2DFFF;
+        border: 1px solid #D1E3FF;
     }
 
-    /* 3. 彻底修改所有输入框（下拉、日期）的黑色底色 */
-    /* 针对 multiselect 和 date_input 的容器 */
-    div[data-baseweb="select"] > div, 
-    div[data-baseweb="base-input"] > div,
-    [data-testid="stMarkdownContainer"] p {
-        background-color: #F0F8FF !important; /* 极浅蓝色 */
-        color: #0A192F !important;
-        border-color: #C2DFFF !important;
-    }
-
-    /* 修改多选框选中的标签 (Tag) 颜色 */
+    /* 1. 修改 ADV Name 选中标签颜色：深蓝色底，白色字 */
     span[data-baseweb="tag"] {
-        background-color: #0A192F !important; /* 标签用深蓝以便区分 */
+        background-color: #003366 !important;
+        color: white !important;
+    }
+    span[data-baseweb="tag"] span {
         color: white !important;
     }
 
-    /* 4. 表格深度定制：表头浅蓝，内容浅蓝 */
-    /* 针对原生 st.dataframe 的表头 */
-    .stDataFrame thead tr th {
-        background-color: #D1E9FF !important;
-        color: #0A192F !important;
-    }
-    
-    /* 针对原生 st.table 或 dataframe 的单元格 */
-    [data-testid="stTable"] thead th, 
-    [data-testid="stTable"] td {
+    /* 2. 修改时间筛选框及下拉框颜色：由黑改浅蓝 */
+    div[data-baseweb="select"] > div, 
+    div[data-baseweb="base-input"] > div {
         background-color: #F0F8FF !important;
-        color: #1A1A1A !important;
+        color: #0A192F !important;
         border: 1px solid #C2DFFF !important;
     }
-
-    /* 5. 首页上传界面 */
-    .upload-container {
-        background-color: #F0F7FF;
-        background-image: linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)), 
-                          url('https://img.freepik.com/free-vector/abstract-blue-geometric-shapes-background_1035-17545.jpg');
-        background-size: cover; padding: 50px; border-radius: 20px; text-align: center; border: 2px solid #D1E3FF;
+    /* 针对日期输入的特定调整 */
+    div[data-testid="stDateInput"] input {
+        background-color: #F0F8FF !important;
+        color: #0A192F !important;
     }
 
-    /* 上传框：保持深蓝底以保持功能引导性，或改为浅蓝 */
-    [data-testid="stFileUploader"] section {
-        background-color: #0A192F !important;
-        border: 2px dashed #3B82F6 !important;
+    /* 3. 表格样式：浅蓝色表头 + 浅灰色网格线 */
+    .stDataFrame {
+        border: 1px solid #E2E8F0 !important;
+    }
+    /* 强制表头样式 */
+    [data-testid="stTable"] thead th {
+        background-color: #D1E9FF !important;
+        color: #0A192F !important;
+        border-bottom: 1px solid #CBD5E0 !important;
+    }
+    /* 单元格及浅灰色网格线 */
+    [data-testid="stTable"] td {
+        background-color: #F8FBFF !important;
+        color: #333333 !important;
+        border: 1px solid #E2E8F0 !important;
     }
 
-    /* 6. 指标卡片 (KPI) */
+    /* KPI 数值 */
     div[data-testid="stMetricValue"] { color: #004A99 !important; font-weight: 800 !important; }
     
-    /* 隐藏侧边栏 */
+    /* 隐藏默认序号列的辅助 CSS (在使用 st.dataframe 时) */
+    [data-testid="stTable"] th:first-child, [data-testid="stTable"] td:first-child {
+        display: none;
+    }
+
     [data-testid="stSidebar"] { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心计算逻辑 ---
+# --- 2. 数据处理与计算函数 ---
 def calc_metrics(temp_df):
     temp_df['Total ROAS'] = (temp_df['Total Sales'] / temp_df['Total Cost']).replace([float('inf'), -float('inf')], 0).fillna(0)
     temp_df['CPM'] = (temp_df['Total Cost'] / (temp_df['Impressions'] / 1000)).replace([float('inf'), -float('inf')], 0).fillna(0)
@@ -88,10 +86,8 @@ def load_and_clean_data(file):
     df.columns = df.columns.str.strip()
     mapping = {
         'Date': '日期', 'Advertiser Name': 'ADV Name',
-        'Total Detail Page View': 'Total Detail Page View',
-        'Total Add To Cart': 'Total Add To Cart',
-        'Total Purchases': 'Total Purchases',
-        'Total New To Brand Purchases': 'Total New To Brand Purchases',
+        'Total Detail Page View': 'Total Detail Page View', 'Total Add To Cart': 'Total Add To Cart',
+        'Total Purchases': 'Total Purchases', 'Total New To Brand Purchases': 'Total New To Brand Purchases',
         'Total Sales': 'Total Sales', 'Total Cost': 'Total Cost', 'Impressions': 'Impressions'
     }
     df.rename(columns=mapping, inplace=True)
@@ -103,12 +99,12 @@ def load_and_clean_data(file):
         df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     return df
 
-# --- 3. 页面控制 ---
+# --- 3. 页面逻辑 ---
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
 if not st.session_state.data_loaded:
-    st.markdown('<div class="upload-container"><h1>🛰️ DSP 数据洞察大脑</h1><p>请上传报表文件开始分析</p></div>', unsafe_allow_html=True)
+    st.write("请在下方上传 DSP 报表文件...")
     uploaded_file = st.file_uploader("", type=['xlsx', 'csv'])
     if uploaded_file:
         st.session_state.df = load_and_clean_data(uploaded_file)
@@ -116,9 +112,9 @@ if not st.session_state.data_loaded:
         st.rerun()
 else:
     df = st.session_state.df
-    st.markdown('<h1 style="margin-bottom:20px;">📊 DSP 投放洞察看板</h1>', unsafe_allow_html=True)
+    st.markdown('<h1>📊 DSP 投放洞察看板</h1>', unsafe_allow_html=True)
 
-    # 1. 顶部筛选区 (浅蓝背景)
+    # 1. 顶部筛选区
     st.markdown('<div class="top-bar">', unsafe_allow_html=True)
     f1, f2, f3 = st.columns([3, 3, 1])
     with f1:
@@ -134,13 +130,12 @@ else:
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 过滤数据
+    # 数据过滤
     if len(date_range) == 2:
         sdf = df.loc[(df['ADV Name'].isin(selected_advs)) & (df['日期'].dt.date >= date_range[0]) & (df['日期'].dt.date <= date_range[1])]
     else:
         sdf = df[df['ADV Name'].isin(selected_advs)]
 
-    # 聚合
     summary = sdf.groupby(['ADV Name', '日期']).agg({
         'Total Cost': 'sum', 'Total Sales': 'sum', 'Impressions': 'sum', 'Clicks': 'sum',
         'Total Detail Page View': 'sum', 'Total Add To Cart': 'sum', 'Total Purchases': 'sum',
@@ -157,19 +152,30 @@ else:
     t4.metric("Total ROAS", f"{(ts/tc if tc>0 else 0):.2f}")
     t5.metric("Total NTBR", f"{(tnb/tp if tp>0 else 0):.2%}")
 
-    # --- 5. 统计明细表格 (全浅蓝) ---
+    # --- 5. 数据统计明细表 (修正: 移除第一列序号 + 浅灰色网格线) ---
     st.write("---")
     st.subheader("📋 数据统计明细表")
     order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
     summary_display = summary[[c for c in order if c in summary.columns]].sort_values(['ADV Name', '日期'])
     
-    # 强制注入表格样式
-    st.table(summary_display.head(20).style.format({
-        'Total Cost': '{:.2f}', 'Total Sales': '{:.2f}', 'Total ROAS': '{:.2f}',
-        'CPM': '{:.2f}', 'CPC': '{:.2f}', 'CTR': '{:.2%}', 'Total NTB Rate': '{:.2%}'
-    }))
+    # 转换为适合显示的格式
+    summary_display['日期'] = summary_display['日期'].dt.strftime('%Y-%m-%d')
+    
+    # 使用 st.dataframe 并隐藏 index
+    st.dataframe(
+        summary_display,
+        use_container_width=True,
+        hide_index=True,  # 关键：去掉第一列区号/序号列
+        column_config={
+            "Total Cost": st.column_config.NumberColumn(format="%.2f"),
+            "Total Sales": st.column_config.NumberColumn(format="%.2f"),
+            "Total ROAS": st.column_config.NumberColumn(format="%.2f"),
+            "CTR": st.column_config.NumberColumn(format="%.2%"),
+            "Total NTB Rate": st.column_config.NumberColumn(format="%.2%"),
+        }
+    )
 
-    # --- 6. 趋势对比分析 ---
+    # --- 6. 趋势分析图 ---
     st.write("---")
     st.subheader("📈 趋势对比分析")
     st.markdown('<div class="chart-filter-box">', unsafe_allow_html=True)
