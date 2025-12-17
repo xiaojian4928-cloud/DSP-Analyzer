@@ -1,45 +1,49 @@
 import streamlit as st
 import pandas as pd
 
-# --- 1. 深度视觉修复（解决底色难改的问题） ---
-st.set_page_config(page_title="DSP 看板", layout="wide")
+# --- 1. 深度视觉修复：彻底解决黑色底色问题 ---
+st.set_page_config(page_title="DSP 数据看板", layout="wide")
 
 st.markdown("""
     <style>
-    /* 1. 强制全局浅色背景 */
+    /* 核心：覆盖 Streamlit 全局主题变量，强制将暗色背景改为浅色 */
+    :root {
+        --secondary-background-color: #F0F4F8 !important; /* 筛选框背景 */
+        --background-color: #FFFFFF !important;           /* 整体背景 */
+        --text-color: #2D3748 !important;                /* 文字颜色 */
+    }
+
+    /* 强制全局背景 */
     .stApp { background-color: #F8FAFC !important; }
     
-    /* 2. 核心：强制抹除表格及内部组件的黑色背景 */
-    [data-testid="stDataFrame"], [data-testid="stDataFrameGrid"], .stDataFrame {
-        background-color: #FFFFFF !important;
-    }
-    /* 针对 Streamlit 新版 Canvas 的强制背景覆盖 */
-    div[data-testid="stDataFrame"] > div {
+    /* 强制抹除表格（Dataframe）的黑色背景 */
+    [data-testid="stDataFrame"], 
+    [data-testid="stDataFrameGrid"],
+    div[role="grid"] {
         background-color: #FFFFFF !important;
     }
 
-    /* 3. 强制筛选框、下拉框为浅色 */
+    /* 筛选框（下拉框、输入框）强制浅蓝色 */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="base-input"] > div,
-    input, select {
+    input {
         background-color: #E1EFFE !important;
         color: #2D3748 !important;
         border: 1px solid #BEE3F8 !important;
     }
     
-    /* 4. 大标题：深蓝色 */
+    /* 大标题深蓝色 */
     .main-title { color: #003366 !important; font-weight: 800; text-align: center; }
 
-    /* 5. 首页上传框定制 */
+    /* 首页上传框样式 */
     [data-testid="stFileUploader"] section {
         background-color: #0A192F !important;
         color: #FFFFFF !important;
-        border: 2px dashed #3182CE !important;
     }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. 数据处理与计算 ---
+# --- 2. 核心计算逻辑 ---
 def calculate_summary(df_in):
     d = df_in.copy()
     def safe_div(a, b): return (a / b).replace([float('inf'), -float('inf')], 0).fillna(0)
@@ -60,7 +64,7 @@ if 'processed_data' not in st.session_state:
 
 if st.session_state.processed_data is None:
     # 首页
-    st.markdown("<h1 style='color: #4A5568;'>🚀 DSP 智能分析中心</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='color: #4A5568; text-align: center;'>🚀 DSP 智能分析中心</h1>", unsafe_allow_html=True)
     uploaded_file = st.file_uploader("请上传广告报表", type=['xlsx', 'csv'])
     if uploaded_file:
         df = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
@@ -76,7 +80,7 @@ else:
 
     # 筛选区
     with st.container():
-        st.markdown("<div style='background-color:#E1EFFE; padding:15px; border-radius:10px; margin-bottom:20px;'>", unsafe_allow_html=True)
+        st.markdown("<div style='background-color:#E1EFFE; padding:15px; border-radius:10px; margin-bottom:20px; border:1px solid #BEE3F8;'>", unsafe_allow_html=True)
         c1, c2, c3 = st.columns([3, 3, 1])
         with c1:
             sel_adv = st.multiselect("筛选 ADV Name", sorted(raw_df['ADV Name'].unique()), default=raw_df['ADV Name'].unique())
@@ -93,7 +97,6 @@ else:
         sdf = raw_df[(raw_df['ADV Name'].isin(sel_adv)) & (raw_df['日期'] >= dr[0]) & (raw_df['日期'] <= dr[1])]
         
         if not sdf.empty:
-            # 汇总计算
             summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
             summary = calculate_summary(summary)
 
@@ -101,7 +104,7 @@ else:
             csv_data = summary.to_csv(index=False).encode('utf-8-sig')
             st.download_button("📥 导出 19 列汇总表格 (CSV)", data=csv_data, file_name="DSP_Summary.csv", mime='text/csv')
 
-            # 表格展示
+            # 表格展示（强制浅色）
             st.subheader("📋 指标明细")
             final_order = [
                 'ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 
@@ -115,12 +118,10 @@ else:
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    # 格式化比例指标为：百分比 + 小数点后两位
                     "CTR": st.column_config.NumberColumn(format="%.2f%%"), 
                     "Total DPVR": st.column_config.NumberColumn(format="%.2f%%"),
                     "Total ATCR": st.column_config.NumberColumn(format="%.2f%%"),
                     "Total NTB Rate": st.column_config.NumberColumn(format="%.2f%%"),
-                    # 其他数值保留两位小数
                     "Total Cost": st.column_config.NumberColumn(format="%.2f"),
                     "Total ROAS": st.column_config.NumberColumn(format="%.2f"),
                     "CPM": st.column_config.NumberColumn(format="%.2f"),
