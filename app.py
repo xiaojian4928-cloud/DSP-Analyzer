@@ -8,175 +8,177 @@ st.set_page_config(page_title="DSP 投放洞察看板", layout="wide")
 
 st.markdown("""
     <style>
-    /* 全局背景：浅灰蓝 */
+    /* 全局背景 */
     .stApp { background-color: #F0F4F8 !important; }
     
-    /* 1. 数据看板界面大标题：深蓝色 */
+    /* 1. 大标题：深蓝色 */
     .main-title {
         color: #003366 !important; 
-        font-size: 2.5rem !important;
-        font-weight: 800 !important;
-        margin-bottom: 20px !important;
-    }
-
-    /* 2. 首页上传界面定制 (保持您之前的科技感设置) */
-    .upload-bg-container {
-        background-image: linear-gradient(rgba(240, 244, 248, 0.8), rgba(240, 244, 248, 0.8)), 
-                          url('https://img.freepik.com/free-vector/abstract-digital-technology-background-with-network-connection-lines_1017-25552.jpg');
-        background-size: cover;
-        background-position: center;
-        padding: 60px 40px;
-        border-radius: 20px;
+        font-size: 2.2rem !important;
+        font-weight: 800;
         text-align: center;
-        border: 1px solid #D1E3FF;
-        margin-bottom: 30px;
+        margin-bottom: 20px;
     }
-    .upload-bg-container h1 { color: #2D3748 !important; }
-    .upload-bg-container p { color: #4A5568 !important; }
 
-    /* 上传框底色：深蓝色 (保持) */
+    /* 2. 首页科技感容器 */
+    .upload-bg-container {
+        background: linear-gradient(rgba(240, 244, 248, 0.85), rgba(240, 244, 248, 0.85)), 
+                    url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+        background-color: #E6F0FF;
+        padding: 50px;
+        border-radius: 15px;
+        text-align: center;
+        border: 1px solid #BEE3F8;
+    }
+    .upload-bg-container h1 { color: #4A5568 !important; }
+    .upload-bg-container p { color: #718096 !important; }
+
+    /* 3. 上传框：深蓝色底 */
     [data-testid="stFileUploader"] section {
         background-color: #0A192F !important;
         border: 2px dashed #3182CE !important;
+        color: white !important;
+    }
+
+    /* 4. 数据看板表格：浅色底 (彻底去黑) */
+    .stDataFrame, [data-testid="stDataFrameGrid"] {
+        background-color: #FFFFFF !important;
         border-radius: 10px;
     }
-    [data-testid="stFileUploader"] section div, [data-testid="stFileUploader"] section span {
-        color: #E2E8F0 !important;
-    }
-
-    /* 3. 看板表格底色：改成浅色 */
-    [data-testid="stDataFrame"], [data-testid="stDataFrameGrid"], div[data-testid="stTable"] {
-        background-color: #F8FAFC !important;
-    }
-    /* 强制表格行和单元格为浅色 */
-    [data-testid="stDataFrame"] div[role="grid"] {
-        background-color: #F8FAFC !important;
-    }
-
-    /* 筛选框及进度条 (保持) */
-    .top-bar, .chart-filter-box {
+    
+    /* 筛选框和指标卡片样式 */
+    .top-bar {
         background-color: #E1EFFE !important;
         padding: 20px;
         border-radius: 12px;
         border: 1px solid #BEE3F8;
+        margin-bottom: 20px;
     }
-    .stProgress > div > div > div > div { background-color: #003366 !important; }
-    div[data-baseweb="select"] > div, div[data-baseweb="base-input"] > div, input {
-        background-color: #EBF5FF !important;
-        color: #2D3748 !important;
-    }
-    span[data-baseweb="tag"] { background-color: #003366 !important; color: white !important; }
+    .stMetric { background-color: #FFFFFF; padding: 10px; border-radius: 10px; border: 1px solid #E2E8F0; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心计算逻辑 (保持不动) ---
+# --- 2. 核心计算逻辑 (防错加强版) ---
 def calc_metrics(df_in):
-    df_res = df_in.copy()
-    def safe_div(a, b): return (a / b).replace([float('inf'), -float('inf')], 0).fillna(0)
-    df_res['Total ROAS'] = safe_div(df_res['Total Sales'], df_res['Total Cost'])
-    df_res['CPM'] = safe_div(df_res['Total Cost'], df_res['Impressions'] / 1000)
-    df_res['CPC'] = safe_div(df_res['Total Cost'], df_res['Clicks'])
-    df_res['CTR'] = safe_div(df_res['Clicks'], df_res['Impressions'])
-    df_res['Total DPVR'] = safe_div(df_res['Total Detail Page View'], df_res['Impressions'])
-    df_res['Total ATCR'] = safe_div(df_res['Total Add To Cart'], df_res['Impressions'])
-    df_res['Total NTB Rate'] = safe_div(df_res['Total New To Brand Purchases'], df_res['Total Purchases'])
-    df_res['Total CPDPV'] = safe_div(df_res['Total Cost'], df_res['Total Detail Page View'])
-    return df_res
+    if df_in.empty: return df_in
+    res = df_in.copy()
+    # 安全除法函数
+    def s_div(a, b): return (a / b).replace([float('inf'), -float('inf')], 0).fillna(0)
+    
+    res['Total ROAS'] = s_div(res['Total Sales'], res['Total Cost'])
+    res['CPM'] = s_div(res['Total Cost'], res['Impressions'] / 1000)
+    res['CPC'] = s_div(res['Total Cost'], res['Clicks'])
+    res['CTR'] = s_div(res['Clicks'], res['Impressions'])
+    res['Total DPVR'] = s_div(res['Total Detail Page View'], res['Impressions'])
+    res['Total ATCR'] = s_div(res['Total Add To Cart'], res['Impressions'])
+    res['Total NTB Rate'] = s_div(res['Total New To Brand Purchases'], res['Total Purchases'])
+    res['Total CPDPV'] = s_div(res['Total Cost'], res['Total Detail Page View'])
+    return res
 
 def load_data(file):
-    df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
-    df.columns = df.columns.str.strip()
-    map_dict = {
-        'Date': '日期', 'Advertiser Name': 'ADV Name',
-        'Total Detail Page View': 'Total Detail Page View', 'Total Add To Cart': 'Total Add To Cart',
-        'Total Purchases': 'Total Purchases', 'Total New To Brand Purchases': 'Total New To Brand Purchases',
-        'Total Sales': 'Total Sales', 'Total Cost': 'Total Cost', 'Impressions': 'Impressions',
-        'Clicks': 'Clicks', 'Total Units Sold': 'Total Units Sold'
-    }
-    df.rename(columns=map_dict, inplace=True)
-    df['日期'] = pd.to_datetime(df['日期'], errors='coerce')
-    for col in map_dict.values():
-        if col not in df.columns and col not in ['日期', 'ADV Name']:
-            df[col] = 0
-        if col not in ['日期', 'ADV Name']:
+    try:
+        df = pd.read_csv(file) if file.name.endswith('.csv') else pd.read_excel(file)
+        df.columns = df.columns.str.strip()
+        map_dict = {
+            'Date': '日期', 'Advertiser Name': 'ADV Name',
+            'Total Detail Page View': 'Total Detail Page View', 'Total Add To Cart': 'Total Add To Cart',
+            'Total Purchases': 'Total Purchases', 'Total New To Brand Purchases': 'Total New To Brand Purchases',
+            'Total Sales': 'Total Sales', 'Total Cost': 'Total Cost', 'Impressions': 'Impressions',
+            'Clicks': 'Clicks', 'Total Units Sold': 'Total Units Sold'
+        }
+        df.rename(columns=map_dict, inplace=True)
+        df['日期'] = pd.to_datetime(df['日期']).dt.date # 统一日期格式
+        
+        # 补齐可能缺失的列
+        for col in list(map_dict.values())[2:]:
+            if col not in df.columns: df[col] = 0
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    return df
+        return df
+    except Exception as e:
+        st.error(f"文件读取失败，请检查格式。错误详情: {e}")
+        return None
 
 # --- 3. 页面主逻辑 ---
-if 'data_loaded' not in st.session_state:
-    st.session_state.data_loaded = False
+if 'df' not in st.session_state: st.session_state.df = None
 
-if not st.session_state.data_loaded:
+if st.session_state.df is None:
     st.markdown('<div class="upload-bg-container"><h1>🚀 DSP 智能数据中心</h1><p>上传报表以解锁多维度增长洞察</p></div>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader("", type=['xlsx', 'csv'])
     if uploaded_file:
         st.session_state.df = load_data(uploaded_file)
-        st.session_state.data_loaded = True
         st.rerun()
 else:
-    # 核心修改：大标题颜色
+    # 1. 标题
     st.markdown('<h1 class="main-title">📊 DSP 投放洞察看板</h1>', unsafe_allow_html=True)
 
+    # 2. 筛选区
+    df = st.session_state.df
     st.markdown('<div class="top-bar">', unsafe_allow_html=True)
-    f1, f2, f3 = st.columns([3, 3, 1])
-    with f1:
-        sel_advs = st.multiselect("ADV Name 筛选", sorted(df['ADV Name'].unique()), default=df['ADV Name'].unique())
-    with f2:
-        d_range = st.date_input("时间段", [df['日期'].min(), df['日期'].max()])
-    with f3:
+    c1, c2, c3 = st.columns([3, 3, 1])
+    with c1:
+        advs = st.multiselect("选择广告主", sorted(df['ADV Name'].unique()), default=df['ADV Name'].unique())
+    with c2:
+        dr = st.date_input("选择日期范围", [df['日期'].min(), df['日期'].max()])
+    with c3:
         st.write("")
         if st.button("🔄 重新上传"):
-            st.session_state.data_loaded = False
+            st.session_state.df = None
             st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    mask = (df['ADV Name'].isin(sel_advs))
-    if len(d_range) == 2:
-        mask &= (df['日期'].dt.date >= d_range[0]) & (df['日期'].dt.date <= d_range[1])
-    sdf = df[mask]
-    
-    summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
-    summary = calc_metrics(summary)
+    # 3. 数据过滤与计算
+    if len(dr) == 2:
+        mask = (df['ADV Name'].isin(advs)) & (df['日期'] >= dr[0]) & (df['日期'] <= dr[1])
+        sdf = df[mask]
+        
+        if not sdf.empty:
+            summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
+            summary = calc_metrics(summary)
 
-    st.subheader("📋 数据统计明细表")
-    final_order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total DPVR', 'Total ATCR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
-    valid_order = [c for c in final_order if c in summary.columns]
-    summary_display = summary[valid_order].sort_values(['ADV Name', '日期'])
+            # 4. KPI 快速概览
+            k1, k2, k3, k4 = st.columns(4)
+            k1.metric("总花费", f"{summary['Total Cost'].sum():,.2f}")
+            k2.metric("总销售", f"{summary['Total Sales'].sum():,.2f}")
+            k3.metric("总 ROAS", f"{(summary['Total Sales'].sum()/summary['Total Cost'].sum()):.2f}" if summary['Total Cost'].sum()>0 else "0.00")
+            k4.metric("总订单", f"{int(summary['Total Purchases'].sum())}")
 
-    # 核心修改：表格浅色底 + 百分比指标配置
-    st.dataframe(
-        summary_display,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "日期": st.column_config.DateColumn(format="YYYY-MM-DD"),
-            "Total Cost": st.column_config.NumberColumn(format="%.2f"),
-            "Total ROAS": st.column_config.NumberColumn(format="%.2f"),
-            "CTR": st.column_config.NumberColumn(format="%.2%"),          # 百分比
-            "Total DPVR": st.column_config.NumberColumn(format="%.2%"),     # 百分比
-            "Total ATCR": st.column_config.NumberColumn(format="%.2%"),     # 百分比
-            "Total NTB Rate": st.column_config.NumberColumn(format="%.2%"), # 百分比
-            "Total Purchases": st.column_config.NumberColumn(format="%d"),
-            "Total Units Sold": st.column_config.NumberColumn(format="%d"),
-        }
-    )
+            # 5. 明细表 (严格 19 列顺序)
+            st.subheader("📋 数据统计明细表")
+            col_order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total DPVR', 'Total ATCR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
+            
+            st.dataframe(
+                summary[col_order],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Total Cost": st.column_config.NumberColumn(format="%.2f"),
+                    "Total ROAS": st.column_config.NumberColumn(format="%.2f"),
+                    "CTR": st.column_config.NumberColumn(format="%.2%"),
+                    "Total DPVR": st.column_config.NumberColumn(format="%.2%"),
+                    "Total ATCR": st.column_config.NumberColumn(format="%.2%"),
+                    "Total NTB Rate": st.column_config.NumberColumn(format="%.2%"),
+                    "Total Purchases": st.column_config.NumberColumn(format="%d"),
+                }
+            )
 
-    # 趋势图逻辑 (保持不动)
-    st.write("---")
-    st.subheader("📈 趋势对比分析")
-    st.markdown('<div class="chart-filter-box">', unsafe_allow_html=True)
-    c1, c2 = st.columns(2)
-    m_bar = c1.selectbox("左轴 (柱状图)", ['Total Cost', 'Impressions', 'Total Sales', 'Total Purchases'])
-    m_line = c2.selectbox("右轴 (折线图)", ['Total ROAS', 'CTR', 'Total NTB Rate', 'Total DPVR', 'CPM'])
-    st.markdown('</div>', unsafe_allow_html=True)
+            # 6. 趋势图 (修复报错的核心逻辑)
+            st.write("---")
+            st.subheader("📈 趋势对比分析")
+            chart_base = summary.groupby('日期').sum(numeric_only=True).reset_index()
+            chart_data = calc_metrics(chart_base)
 
-    chart_base = summary.groupby('日期').sum(numeric_only=True).reset_index()
-    chart_data = calc_metrics(chart_base)
-
-    if not chart_data.empty:
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
-        fig.add_trace(go.Bar(x=chart_data['日期'], y=chart_data[m_bar], name=m_bar, marker_color='#4299E1'), secondary_y=False)
-        fig.add_trace(go.Scatter(x=chart_data['日期'], y=chart_data[m_line], name=m_line, line=dict(color='#ED8936', width=4)), secondary_y=True)
-        ax_style = dict(showgrid=True, gridcolor='#E2E8F0', tickfont=dict(color="#4A5568"))
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#F7FAFC', xaxis=ax_style, yaxis=ax_style, yaxis2=dict(overlaying='y', side='right', **ax_style), hovermode="x unified", height=500)
-        st.plotly_chart(fig, use_container_width=True)
+            fig = make_subplots(specs=[[{"secondary_y": True}]])
+            fig.add_trace(go.Bar(x=chart_data['日期'], y=chart_data['Total Cost'], name="花费", marker_color='#4299E1'), secondary_y=False)
+            fig.add_trace(go.Scatter(x=chart_data['日期'], y=chart_data['Total ROAS'], name="ROAS", line=dict(color='#ED8936', width=3)), secondary_y=True)
+            
+            fig.update_layout(
+                hovermode="x unified",
+                plot_bgcolor='white',
+                xaxis=dict(tickfont=dict(color="gray"), showgrid=False),
+                yaxis=dict(title="花费", tickfont=dict(color="gray")),
+                yaxis2=dict(title="ROAS", overlaying='y', side='right', tickfont=dict(color="gray")),
+                height=400, margin=dict(l=0,r=0,t=20,b=0)
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("当前筛选条件下无数据，请重新选择。")
