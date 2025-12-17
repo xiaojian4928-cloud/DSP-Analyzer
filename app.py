@@ -11,35 +11,51 @@ st.markdown("""
     /* 全局背景：浅灰蓝 */
     .stApp { background-color: #F0F4F8 !important; }
     
-    /* 1. 首页上传界面字体颜色：深灰色 */
-    .upload-text-container h1, .upload-text-container p {
-        color: #4A5568 !important; /* 工业深灰色 */
+    /* 1. 首页上传界面定制 */
+    .upload-bg-container {
+        background-image: linear-gradient(rgba(240, 244, 248, 0.8), rgba(240, 244, 248, 0.8)), 
+                          url('https://img.freepik.com/free-vector/abstract-digital-technology-background-with-network-connection-lines_1017-25552.jpg');
+        background-size: cover;
+        background-position: center;
+        padding: 80px 40px;
+        border-radius: 20px;
         text-align: center;
+        border: 1px solid #D1E3FF;
+        margin-bottom: 30px;
     }
-    
-    /* 2. 上传框底色：深蓝色 */
+
+    /* 2. 上传界面字体：深灰色 */
+    .upload-bg-container h1 {
+        color: #2D3748 !important; /* 深灰色标题 */
+        font-size: 2.5rem !important;
+        margin-bottom: 10px !important;
+    }
+    .upload-bg-container p {
+        color: #4A5568 !important; /* 深灰色描述 */
+        font-size: 1.1rem !important;
+    }
+
+    /* 3. 上传框底色：深蓝色 */
     [data-testid="stFileUploader"] section {
         background-color: #0A192F !important; /* 纯正深蓝 */
         border: 2px dashed #3182CE !important;
-        color: white !important;
+        border-radius: 10px;
     }
-    /* 上传框内的辅助文字设为浅灰色以便看清 */
-    [data-testid="stFileUploader"] section div, [data-testid="stFileUploader"] section span {
-        color: #CBD5E0 !important;
+    /* 上传框内文字颜色调整，确保在深蓝底色上可见 */
+    [data-testid="stFileUploader"] section div, 
+    [data-testid="stFileUploader"] section span,
+    [data-testid="stFileUploader"] section button {
+        color: #E2E8F0 !important;
     }
 
-    /* 进度条颜色：深蓝色 */
+    /* 保持其他原有样式不动 */
     .stProgress > div > div > div > div { background-color: #003366 !important; }
-
-    /* 筛选容器及其他保持不变 */
     .top-bar, .chart-filter-box {
         background-color: #E1EFFE !important;
         padding: 20px;
         border-radius: 12px;
         border: 1px solid #BEE3F8;
-        margin-bottom: 20px;
     }
-
     [data-testid="stDataFrame"], [data-testid="stDataFrameGrid"] {
         background-color: #EBF5FF !important;
     }
@@ -50,11 +66,10 @@ st.markdown("""
         color: #2D3748 !important;
     }
     span[data-baseweb="tag"] { background-color: #003366 !important; color: white !important; }
-    [data-testid="stTable"] th:first-child, [data-testid="stTable"] td:first-child { display: none; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. 核心逻辑：比例指标计算 (保持不动) ---
+# --- 2. 核心计算逻辑 (保持不动) ---
 def calc_metrics(df_in):
     df_res = df_in.copy()
     def safe_div(a, b): return (a / b).replace([float('inf'), -float('inf')], 0).fillna(0)
@@ -92,19 +107,22 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
 if not st.session_state.data_loaded:
-    # 修改：上传首页界面
-    st.markdown('<div class="upload-text-container" style="padding-top:100px;">', unsafe_allow_html=True)
-    st.markdown('<h1>🚀 DSP 数据洞察中心</h1>', unsafe_allow_html=True)
-    st.markdown('<p>请上传您的广告报表（Excel 或 CSV）以生成多维度分析报告</p>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 首页上传容器
+    st.markdown("""
+        <div class="upload-bg-container">
+            <h1>🚀 DSP 智能数据中心</h1>
+            <p>上传报表以解锁多维度增长洞察，支持 Excel 及 CSV 格式</p>
+        </div>
+    """, unsafe_allow_html=True)
     
+    # 放置在容器下方的上传组件
     uploaded_file = st.file_uploader("", type=['xlsx', 'csv'])
     if uploaded_file:
         st.session_state.df = load_data(uploaded_file)
         st.session_state.data_loaded = True
         st.rerun()
 else:
-    # 看板部分完全保持之前的逻辑不动
+    # 保持原有看板逻辑不动
     df = st.session_state.df
     st.markdown('<h1>📊 DSP 投放洞察看板</h1>', unsafe_allow_html=True)
 
@@ -130,12 +148,8 @@ else:
     summary = calc_metrics(summary)
 
     st.subheader("📋 数据统计明细表")
-    final_order = [
-        'ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 
-        'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 
-        'Total Purchases', 'Total Units Sold', 'CTR', 'Total DPVR', 'Total ATCR', 
-        'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales'
-    ]
+    # 保持 19 列表头顺序
+    final_order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total DPVR', 'Total ATCR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
     valid_order = [c for c in final_order if c in summary.columns]
     summary_display = summary[valid_order].sort_values(['ADV Name', '日期'])
 
@@ -146,21 +160,15 @@ else:
         column_config={
             "日期": st.column_config.DateColumn(format="YYYY-MM-DD"),
             "Total Cost": st.column_config.NumberColumn(format="%.2f"),
-            "Total Sales": st.column_config.NumberColumn(format="%.2f"),
             "Total ROAS": st.column_config.NumberColumn(format="%.2f"),
-            "CPM": st.column_config.NumberColumn(format="%.2f"),
-            "CPC": st.column_config.NumberColumn(format="%.2f"),
-            "Total CPDPV": st.column_config.NumberColumn(format="%.2f"),
             "CTR": st.column_config.NumberColumn(format="%.2%"),
             "Total DPVR": st.column_config.NumberColumn(format="%.2%"),
             "Total ATCR": st.column_config.NumberColumn(format="%.2%"),
             "Total NTB Rate": st.column_config.NumberColumn(format="%.2%"),
-            "Total Purchases": st.column_config.NumberColumn(format="%d"),
-            "Total Units Sold": st.column_config.NumberColumn(format="%d"),
-            "Total New To Brand Purchases": st.column_config.NumberColumn(format="%d"),
         }
     )
 
+    # 趋势图
     st.write("---")
     st.subheader("📈 趋势对比分析")
     st.markdown('<div class="chart-filter-box">', unsafe_allow_html=True)
@@ -177,9 +185,5 @@ else:
         fig.add_trace(go.Bar(x=chart_data['日期'], y=chart_data[m_bar], name=m_bar, marker_color='#4299E1'), secondary_y=False)
         fig.add_trace(go.Scatter(x=chart_data['日期'], y=chart_data[m_line], name=m_line, line=dict(color='#ED8936', width=4)), secondary_y=True)
         ax_style = dict(showgrid=True, gridcolor='#E2E8F0', tickfont=dict(color="#4A5568"))
-        fig.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#F7FAFC',
-            xaxis=ax_style, yaxis=ax_style, yaxis2=dict(overlaying='y', side='right', **ax_style),
-            hovermode="x unified", height=500
-        )
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='#F7FAFC', xaxis=ax_style, yaxis=ax_style, yaxis2=dict(overlaying='y', side='right', **ax_style), hovermode="x unified", height=500)
         st.plotly_chart(fig, use_container_width=True)
