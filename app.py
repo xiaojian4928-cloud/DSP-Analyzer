@@ -6,52 +6,58 @@ from plotly.subplots import make_subplots
 # --- 1. 页面配置与深度视觉定制 ---
 st.set_page_config(page_title="DSP 投放洞察看板", layout="wide")
 
+# 这里的 CSS 增加了对 .stSelectbox, .stDateInput 内部容器的深度控制
 st.markdown("""
     <style>
-    /* 1. 全局背景：调暗一点，改用浅灰蓝色 */
-    .stApp { background-color: #F4F7F9 !important; }
-    h1, h2, h3, .stMetric label, label, p { color: #1A202C !important; font-weight: 700 !important; }
+    /* 1. 全局背景：浅灰蓝色 */
+    .stApp { background-color: #F0F4F8 !important; }
+    h1, h2, h3, .stMetric label, label, p { color: #2D3748 !important; font-weight: 700 !important; }
 
     /* 2. 容器样式：锁定浅蓝底色 */
     .top-bar, .chart-filter-box {
-        background-color: #E2EEFB !important;
+        background-color: #E6F0FF !important;
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 25px;
-        border: 1px solid #C3DAF9;
+        border: 1px solid #BEE3F8;
     }
 
-    /* 3. 彻底去除黑色背景：强制修改按钮、下拉框、输入框 */
+    /* 3. 彻底去除黑色背景：强制修改所有输入组件内部 */
+    /* 针对下拉框、日期选择器、按钮 */
     div[data-baseweb="select"] > div, 
     div[data-baseweb="base-input"] > div,
-    div[data-testid="stDateInput"] input,
-    .stButton > button {
+    div[data-testid="stDateInput"] div,
+    input {
         background-color: #EBF5FF !important;
-        color: #1A202C !important;
-        border: 1px solid #BEE3F8 !important;
-    }
-    
-    /* 按钮悬停效果 */
-    .stButton > button:hover {
-        border-color: #3182CE !important;
-        background-color: #D1E9FF !important;
+        color: #2D3748 !important;
+        border-color: #BEE3F8 !important;
     }
 
-    /* 4. ADV Name 选中标签颜色：深蓝色底，白色字 */
+    /* 针对重新上传按钮 */
+    .stButton > button {
+        background-color: #EBF5FF !important;
+        color: #2D3748 !important;
+        border: 1px solid #90CDF4 !important;
+        width: 100%;
+    }
+    .stButton > button:hover {
+        background-color: #BEE3F8 !important;
+        border-color: #3182CE !important;
+    }
+
+    /* 4. 修改选中标签：深蓝色底，白色字 */
     span[data-baseweb="tag"] {
         background-color: #2C5282 !important;
         color: white !important;
     }
     span[data-baseweb="tag"] span { color: white !important; }
 
-    /* 5. 表格深度样式：浅蓝色背景 + 浅灰色网格 */
+    /* 5. 表格容器：去除黑色 */
     [data-testid="stDataFrame"] {
-        background-color: #EBF5FF !important;
+        background-color: #F7FAFC !important;
     }
-    /* 隐藏序号列 */
-    [data-testid="stTable"] th:first-child, [data-testid="stTable"] td:first-child { display: none; }
     
-    /* 6. 指标卡片 */
+    /* 6. 指标卡片数值 */
     div[data-testid="stMetricValue"] { color: #2B6CB0 !important; font-weight: 800 !important; }
 
     [data-testid="stSidebar"] { display: none; }
@@ -90,7 +96,7 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False
 
 if not st.session_state.data_loaded:
-    st.write("请上传 DSP 报表文件...")
+    st.markdown('<div class="top-bar"><h2>请上传 DSP 报表文件</h2></div>', unsafe_allow_html=True)
     uploaded_file = st.file_uploader("", type=['xlsx', 'csv'])
     if uploaded_file:
         st.session_state.df = load_and_clean_data(uploaded_file)
@@ -122,6 +128,7 @@ else:
     else:
         sdf = df[df['ADV Name'].isin(selected_advs)]
 
+    # 聚合数据
     summary = sdf.groupby(['ADV Name', '日期']).agg({
         'Total Cost': 'sum', 'Total Sales': 'sum', 'Impressions': 'sum', 'Clicks': 'sum',
         'Total Detail Page View': 'sum', 'Total Add To Cart': 'sum', 'Total Purchases': 'sum',
@@ -138,19 +145,19 @@ else:
     t4.metric("Total ROAS", f"{(ts/tc if tc>0 else 0):.2f}")
     t5.metric("Total NTBR", f"{(tnb/tp if tp>0 else 0):.2%}")
 
-    # --- 5. 数据统计明细表 (修正格式化与样式) ---
+    # --- 5. 数据统计明细表 (修复报错 + 格式优化) ---
     st.write("---")
     st.subheader("📋 数据统计明细表")
     order = ['ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 'Total Purchases', 'Total Units Sold', 'CTR', 'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales']
     summary_display = summary[[c for c in order if c in summary.columns]].sort_values(['ADV Name', '日期'])
     
-    summary_display['日期'] = summary_display['日期'].dt.strftime('%Y-%m-%d')
-    
+    # 修复：不要手动转换字符串日期，由 hide_index 和 column_config 统一处理
     st.dataframe(
         summary_display,
         use_container_width=True,
         hide_index=True,
         column_config={
+            "日期": st.column_config.DateColumn("日期", format="YYYY-MM-DD"),
             "Total Cost": st.column_config.NumberColumn("Cost", format="%.2f"),
             "Total Sales": st.column_config.NumberColumn("Sales", format="%.2f"),
             "Total ROAS": st.column_config.NumberColumn("ROAS", format="%.2f"),
@@ -164,7 +171,7 @@ else:
         }
     )
 
-    # --- 6. 趋势分析图 (横纵坐标统一深灰色) ---
+    # --- 6. 趋势分析图 (横纵轴深灰色) ---
     st.write("---")
     st.subheader("📈 趋势对比分析")
     st.markdown('<div class="chart-filter-box">', unsafe_allow_html=True)
@@ -173,30 +180,30 @@ else:
     m_line = c_col2.selectbox("折线图指标 (右轴)", ['Total ROAS', 'Total NTB Rate', 'CTR', 'CPM'])
     st.markdown('</div>', unsafe_allow_html=True)
     
-    chart_df = summary_display.groupby('日期').agg({
+    chart_df = summary.groupby('日期').agg({
         'Total Cost': 'sum', 'Total Sales': 'sum', 'Impressions': 'sum', 
         'Clicks': 'sum', 'Total Purchases': 'sum', 'Total New To Brand Purchases': 'sum'
     }).reset_index()
     chart_df = calc_metrics(chart_df)
     
     fig = make_subplots(specs=[[{"secondary_y": True}]])
-    fig.add_trace(go.Bar(x=chart_df['日期'], y=chart_df[m_bar], name=m_bar, marker_color='#3182CE'), secondary_y=False)
-    fig.add_trace(go.Scatter(x=chart_df['日期'], y=chart_df[m_line], name=m_line, line=dict(color='#DD6B20', width=4)), secondary_y=True)
+    fig.add_trace(go.Bar(x=chart_df['日期'], y=chart_df[m_bar], name=m_bar, marker_color='#4299E1'), secondary_y=False)
+    fig.add_trace(go.Scatter(x=chart_df['日期'], y=chart_df[m_line], name=m_line, line=dict(color='#ED8936', width=4)), secondary_y=True)
     
-    # 坐标轴颜色深度优化
-    axis_style = dict(
+    # 横纵坐标全部统一为深灰色
+    axis_config = dict(
         showgrid=True, 
         gridcolor='#E2E8F0', 
-        tickfont=dict(color="#4A5568", size=12), # 统一深灰色
-        titlefont=dict(color="#4A5568", size=14)
+        tickfont=dict(color="#4A5568"), # 深灰色文字
+        titlefont=dict(color="#4A5568")
     )
 
     fig.update_layout(
         paper_bgcolor='rgba(0,0,0,0)', 
-        plot_bgcolor='#F8FBFF', 
+        plot_bgcolor='#F7FAFC', 
         hovermode="x unified",
-        xaxis=axis_style,
-        yaxis=axis_style,
-        yaxis2=dict(overlaying='y', side='right', **axis_style)
+        xaxis=axis_config,
+        yaxis=axis_config,
+        yaxis2=dict(overlaying='y', side='right', **axis_config)
     )
     st.plotly_chart(fig, use_container_width=True)
