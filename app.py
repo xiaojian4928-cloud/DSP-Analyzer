@@ -8,7 +8,7 @@ st.markdown("""
     <style>
     /* 强制全局背景与主题变量 */
     :root {
-        --secondary-background-color: #EBF5FF !important; /* 表格及部分组件背景 */
+        --secondary-background-color: #EBF5FF !important; 
         --background-color: #FFFFFF !important;
         --text-color: #2D3748 !important;
     }
@@ -18,14 +18,10 @@ st.markdown("""
     .main-title { color: #4A5568 !important; font-weight: 800; text-align: center; margin-bottom: 25px; }
     
     /* 强制顶部五个指标卡片的数值和标签为深灰色 */
-    [data-testid="stMetricValue"] {
-        color: #4A5568 !important;
-    }
-    [data-testid="stMetricLabel"] > div {
-        color: #4A5568 !important;
-    }
+    [data-testid="stMetricValue"] { color: #4A5568 !important; }
+    [data-testid="stMetricLabel"] > div { color: #4A5568 !important; }
 
-    /* 强制将表格（Dataframe）底色改为浅蓝色 */
+    /* 强制将表格底色改为浅蓝色 */
     [data-testid="stDataFrame"], [data-testid="stDataFrameGrid"] {
         background-color: #EBF5FF !important;
         border-radius: 8px;
@@ -34,7 +30,7 @@ st.markdown("""
         background-color: #EBF5FF !important;
     }
 
-    /* 筛选框样式：浅蓝色背景，深灰色文字 */
+    /* 筛选框样式 */
     div[data-baseweb="select"] > div, div[data-baseweb="base-input"] > div, input {
         background-color: #F0F7FF !important;
         color: #4A5568 !important;
@@ -47,7 +43,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 2. 核心计算函数 ---
-def calculate_row_metrics(df_in):
+def calculate_metrics(df_in):
     d = df_in.copy()
     def safe_div(a, b): return (a / b).replace([float('inf'), -float('inf')], 0).fillna(0)
     
@@ -95,10 +91,11 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     if len(dr) == 2:
+        # 严格执行筛选逻辑
         sdf = raw_df[(raw_df['ADV Name'].isin(sel_adv)) & (raw_df['日期'] >= dr[0]) & (raw_df['日期'] <= dr[1])]
         
         if not sdf.empty:
-            # --- 4. 汇总逻辑：先汇总再计算 ---
+            # 1. 顶部汇总指标计算
             total_cost = sdf['Total Cost'].sum()
             total_sales = sdf['Total Sales'].sum()
             total_imps = sdf['Impressions'].sum()
@@ -109,50 +106,10 @@ else:
             agg_ecpm = (total_cost / (total_imps / 1000)) if total_imps > 0 else 0
             agg_ntb_rate = (total_ntb_pur / total_pur) if total_pur > 0 else 0
 
-            # 顶部核心指标显示
-            st.markdown("<h3 style='color:#4A5568;'>📌 核心指标汇总 (Aggregated)</h3>", unsafe_allow_html=True)
+            # 顶部核心指标展示
+            st.markdown("<h3 style='color:#4A5568;'>📌 核心指标汇总</h3>", unsafe_allow_html=True)
             k1, k2, k3, k4, k5 = st.columns(5)
             k1.metric("Total Cost", f"${total_cost:,.2f}")
             k2.metric("Total Sales", f"${total_sales:,.2f}")
             k3.metric("ECPM", f"${agg_ecpm:,.2f}")
-            k4.metric("Total ROAS", f"{agg_roas:.2f}")
-            k5.metric("Total NTB Rate", f"{agg_ntb_rate:.2%}")
-            
-            st.write("---")
-
-            # --- 5. 数据汇总与排序：先ADV Name升序，再日期升序 ---
-            summary = sdf.groupby(['ADV Name', '日期']).sum(numeric_only=True).reset_index()
-            summary = calculate_row_metrics(summary)
-            # 排序逻辑实现
-            summary = summary.sort_values(by=['ADV Name', '日期'], ascending=[True, True])
-
-            st.download_button(
-                "📥 导出汇总明细 (CSV)", 
-                data=summary.to_csv(index=False).encode('utf-8-sig'), 
-                file_name="DSP_Summary.csv", 
-                mime='text/csv'
-            )
-
-            st.subheader("📋 指标明细统计")
-            final_order = [
-                'ADV Name', '日期', 'Total Cost', 'Total ROAS', 'CPM', 'CPC', 'Total CPDPV', 
-                'Impressions', 'Clicks', 'Total Detail Page View', 'Total Add To Cart', 
-                'Total Purchases', 'Total Units Sold', 'CTR', 'Total DPVR', 'Total ATCR', 
-                'Total NTB Rate', 'Total New To Brand Purchases', 'Total Sales'
-            ]
-            
-            st.dataframe(
-                summary[final_order],
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "CTR": st.column_config.NumberColumn(format="%.2f%%"), 
-                    "Total DPVR": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Total ATCR": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Total NTB Rate": st.column_config.NumberColumn(format="%.2f%%"),
-                    "Total Cost": st.column_config.NumberColumn(format="%.2f"),
-                    "Total Sales": st.column_config.NumberColumn(format="%.2f"),
-                }
-            )
-        else:
-            st.warning("⚠️ 所选范围内无有效数据。")
+            k4.metric("Total ROAS",
